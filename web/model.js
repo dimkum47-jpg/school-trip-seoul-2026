@@ -1,0 +1,5 @@
+export const LIMITS={title:100,body:2000,url:500,submissions:20,minInterval:60000,maxSaves:30};
+export function safeUrl(value){try{const u=new URL(value);return u.protocol==='https:'&& !u.username && !u.password && value.length<=LIMITS.url?u.href:'';}catch{return '';}}
+export function validateAnswer(a){if(typeof a.title!=='string'||a.title.length>LIMITS.title||typeof a.body!=='string'||a.body.length>LIMITS.body)throw Error('제목은 100자, 내용은 2,000자까지 적어 주세요.');if(a.url&&!safeUrl(a.url))throw Error('작품 링크는 https:// 주소만 입력해 주세요.');if(!a.title.trim()&&!a.body.trim()&&!a.photoClaim)throw Error('글을 적거나 사진 제출 여부를 표시해 주세요.');return a;}
+export function csvCell(v){let s=String(v??'');if(/^[\s]*[=+@-]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';}
+export function budget(){return {storageMiB:20*20*10240*10/1024**2,readsPerDay:20000,writesPerDay:5000};}

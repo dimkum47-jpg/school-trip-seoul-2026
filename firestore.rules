@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function signed(trip) { return request.auth != null && request.auth.token.trip == trip; }
+  function teacher(trip) { return signed(trip) && request.auth.token.teacher == true; }
+  function student(trip, uid) { return signed(trip) && request.auth.uid == uid && request.auth.token.teacher == false && get(/databases/$(database)/documents/trips/$(trip)/students/$(uid)).data.active == true; }
+  function mission(id) { return id in ['museum','fairplay','tower','upcycle','math','theater','color','aquarium','memory','sticker','photo1','photo2','photo3','photo4','photo5','photo6','photo7','photo8','photo9']; }
+  function valid(d) { return d.keys().hasAll(['title','body','url','photoClaim','review','feedback','updatedAt','windowStart','saveCount']) && d.keys().hasOnly(['title','body','url','photoClaim','review','feedback','updatedAt','windowStart','saveCount']) && d.title is string && d.title.size() <= 100 && d.body is string && d.body.size() <= 2000 && d.url is string && d.url.size() <= 500 && (d.url == '' || d.url.matches('https://[^\\s]+')) && d.photoClaim is bool && d.review in ['pending','confirmed','revise'] && d.feedback is string && d.feedback.size() <= 500 && d.updatedAt is timestamp && d.windowStart is timestamp && d.saveCount is int && d.saveCount >= 1 && d.saveCount <= 30; }
+  match /trips/{trip}/settings/main {
+   allow read: if signed(trip);
+   allow write: if teacher(trip) && request.resource.data.keys().hasOnly(['notice','closed','uploads','schedules','colors','canva','meetings']) && request.resource.data.notice is string && request.resource.data.notice.size() <= 1000 && request.resource.data.closed is bool;
+  }
+  match /trips/{trip}/students/{uid} {
+   allow get: if teacher(trip) || student(trip,uid);
+   allow list: if teacher(trip) && request.query.limit <= 20;
+   allow write: if false;
+   match /submissions/{id} {
+    allow get: if teacher(trip) || student(trip,uid);
+    allow list: if (teacher(trip) || student(trip,uid)) && request.query.limit <= 20;
+    function canSubmit() { return student(trip,uid) && mission(id) && get(/databases/$(database)/documents/trips/$(trip)/settings/main).data.closed == false && valid(request.resource.data) && request.resource.data.review == 'pending' && request.resource.data.feedback == '' && request.resource.data.updatedAt == request.time; }
+    allow create: if canSubmit() && request.resource.data.saveCount == 1 && request.resource.data.windowStart == request.time;
+    allow update: if (canSubmit() && request.time >= resource.data.updatedAt + duration.value(60,'s') && ((request.time >= resource.data.windowStart + duration.value(24,'h') && request.resource.data.windowStart == request.time && request.resource.data.saveCount == 1) || (request.time < resource.data.windowStart + duration.value(24,'h') && request.resource.data.windowStart == resource.data.windowStart && request.resource.data.saveCount == resource.data.saveCount + 1))) || (teacher(trip) && valid(request.resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['review','feedback']));
+    allow delete: if teacher(trip);
+   }
+  }
+ }
+}

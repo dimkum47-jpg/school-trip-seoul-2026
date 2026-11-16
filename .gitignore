@@ -1,0 +1,13 @@
+worker/.dev.vars
+worker/wrangler.toml
+worker/node_modules/
+.env
+.env.*
+!.env.example
+
+node_modules/
+*-debug.log
+private/
+invites*
+service-account*
+.firebase/

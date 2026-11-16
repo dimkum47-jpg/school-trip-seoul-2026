@@ -33,10 +33,11 @@ jobs:
           html = html.replace('./style.css"', f'./style.css?v={version}"')
           html = html.replace('./app.js"', f'./app.js?v={version}"')
           index.write_text(html, encoding="utf-8")
-          app = pathlib.Path("site/app.js")
-          js = app.read_text(encoding="utf-8")
-          js = js.replace('from "./config.js"', f'from "./config.js?v={version}"')
-          app.write_text(js, encoding="utf-8")
+          import re
+          for script in pathlib.Path("site").rglob("*.js"):
+              js = script.read_text(encoding="utf-8")
+              js = re.sub(r"(from\s+['\"])(\./[^'\"]+\.js)(['\"])", lambda m: f'{m[1]}{m[2]}?v={version}{m[3]}', js)
+              script.write_text(js, encoding="utf-8")
           PY
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

@@ -1,3 +1,10 @@
-// 개인정보 공개 배포 확인 전에는 자료를 포함하지 않습니다.
-export const TRAVEL_INFO_READY=false;
-export async function unlockTravelInfo(){throw new Error('여행 안내 준비 중');}
+export const TRAVEL_INFO_READY=true;
+// 여행 안내는 확인 코드로만 열며, 코드와 복호화된 내용은 저장하지 않습니다.
+const sealed={"salt":"5gsPX98/B1posuvowdsL0w==","iv":"78RrXamYa+Xu9n+w","body":"/zcspRCyPyUktPJEGzj+llM/3LkxbscVgVO7TM6S2gNsg9YqMq2WEvTpVbme1yNADkbNiX9YADpiQyGNIHUn+2CXYJesiJ/xFzxYoxDnbQyH/nkbXKS9DnbbSmbpPC78cSJ+IHZxj6zwvDxF2BNcz3R1yTO0MN1oEpW/ubnMv7JqOS9+k2tioLAkoNuzUNSATDj4vES7Gk1uSo5MDT+EC/gk2SvemdeYPMc1gX1Wq+Rj9/lmdqTARaqIi38GoeCVOrtRxWt4oQPJeAZhBPEUXUFYJe5MbxL6PH2BoMOxbFdlylIjz3pQpFzOzOTLKYm2KhipO/S6n/AqU5Hf1aZEm5EHugLAZNBNqmD8qOE8HixxF0hREySPSUf8cWOoH4XXD5ge5zTXPjZvMfKTU1rqvsDPPh/b0vG//oWBGsTm7oTbATa2U5QQvgCk1i1QxhacpFEXohESz/aerqcputkL+wiGNJZwN3SOgm8ElLzxzJXhLEemfsBM2/5Os1VOOjIf0BqqxgmWVLIsvorx4T6mh3H8CzO4rudF+THf258BxoUGMldoC0Eduqz5Wntp5sbjEbcp+smLsYJxSBJzYLY/HlNSyRYAEbVzqYpWm6cr5Uy4QTMrrHGc/3hg4xR/zOFXo3Q7UDggIiK+DvZr+LSFn/ykmkmq4Sm1djCgkoC/juWubIrXQ2rxQe7Au8Tb2qgcnnVqEqvrfSH011sYDuZxLQZ6W5SilywypWV089sdsSuBzlcvBRPRxcqUSJ47Foff9d6oql1gl3IvRxBZDZgh3nqml9z4j1hobLP7/+9AOJWNSWYEuXDrZTI7tIwLcYVDJJ0wj1F33BgqEvyqsnJuXhesRNZsu2LBx6qK3c7SeugplSgR2GoW1kzTD4TERsAznW7WOCuzNZ3W7K9gByI53KbBE5lx5AjSecOjuf1iM3IyXiz/wBdYYuaomtwkt4iWBBL5JSOgx4PzQ91eZoBk0IRWyjkwt6lmhTo25EGnrqCvwhHPRdz1uM+joWgbPTB56EZgM7z988YHPZy0G6I+2ezhwldZjCVbZAkwCjby5V8NIUGWFsYNGjIi5eVY8i+yfDUqyPhvTGPfM7qPd6Kq1HOQd0KEIkbJRxF4h7z/5/JaO5VaQEAOn6Kuj51NZ3ERWWU2wLbwd77XC8oNZ9KmyQfXJHjvFeBvqnON4yHzuAP5ncLL1MxX4fVSxXbt88bHI7Al4P+bNGQ5BKf/WvcsUNJ86H+/k7LAdAmyx7yr2gUHLXI4foIbaiGRIu0TxwvgFMrL2bje/rNlNyXnBaenPYJAX33WlYGxNvklUulLqd0D3Q53K2HsZV7CgnW58dCa4UaR3ypfxruyLyjKO8bTxlTYoXYvygU="};
+const bytes=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+export async function unlockTravelInfo(code){
+ const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(code),'PBKDF2',false,['deriveKey']);
+ const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:bytes(sealed.salt),iterations:250000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['decrypt']);
+ const raw=await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes(sealed.iv)},key,bytes(sealed.body));
+ return JSON.parse(new TextDecoder().decode(raw));
+}

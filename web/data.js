@@ -6,9 +6,9 @@ export const missions = [
 ['upcycle',2,'서울새활용플라자','상상 속 새활용품','버려진 재료의 새로운 쓰임을 상상해요. 미리클AI로 만든 작품을 패들렛에 소개해요.','AI 결과 이미지'],
 ['math',2,'노원수학문화관','수학이 숨어 있던 자리','전시나 체험에서 발견한 수학적 특징을 사진 또는 그림과 함께 패들렛에 소개해요.','사진 또는 그림'],
 ['theater',2,'연극 「삐삐」','마음에 남은 한 장면','연극을 본 경험과 내 생각을 담아 감상 기록문을 10문장 이상 써요. 공연이 끝난 뒤 기록해요.',''],
-['color',3,'올림픽공원','가을의 색을 모으다','내가 뽑은 색이 주인공인 사진 9장을 찍고, 캔바에서 3×3 사진 작품을 만들어요. 원본 9장과 완성 작품 1장, 총 10장을 제출해요.','원본 사진 9장 + 캔바 완성 작품 1장'],
+['color',3,'올림픽공원','가을의 색을 모으다','내가 뽑은 색이 주인공인 사진 8장을 찍고, 캔바에서 자신의 번호에 해당하는 페이지에 배치해요. 가운데에 제목과 이름을 넣고 완성 작품을 패들렛에 올려요.','사진 8장으로 만든 캔바 완성 작품 1장'],
 ['aquarium',3,'코엑스 아쿠아리움','너의 세상을 소개할게','생물 하나를 골라 사진·이름·관찰한 특징을 담은 소개 카드를 패들렛에 올려요.','생물 사진 또는 그림'],
-['memory',3,'돌아오는 길','사흘을 담은 한 장','여행 베스트 컷을 골라 제목·선정 이유·친구에게 전하는 말을 패들렛에 남겨요.','베스트 사진'],
+['memory',3,'돌아오는 길','사흘을 담은 한 장','여행 베스트 컷을 골라 제목·여행 소감·친구에게 전하는 말을 패들렛에 남겨요.','베스트 사진'],
 ['sticker',4,'여행 후','추억을 스티커로','미리캔버스 AI로 여행 스티커를 만들어요. 작품의 의미도 적어 보세요.','스티커 이미지'],
 ].map(([id,day,place,title,prompt,photo])=>({id,day,place,title,prompt,photo}));
 export const schedules = {
@@ -37,3 +37,10 @@ export const photoGroups={
 2:{id:'photos-2',day:2,title:'사진 미션',items:[['발견하는 얼굴','전시나 체험에 집중하는 친구 찍어주기'],['웃음 한 조각','쉬는 시간 친구의 자연스러운 미소 찍어주기'],['우리 셋의 한 장면','세 친구가 함께 만든 포즈로 사진 찍기']]},
 3:{id:'photos-3',day:3,title:'사진 미션',items:[['가을 속에 나란히','가을 풍경 속에서 친구와 함께 전신 사진 찍기'],['마지막도 우리 함께','첫날과 같은 포즈로 단체 사진 찍기'],['우정 한 컷','친구와 서로 마주 보며 웃는 모습 찍기']]}
 };
+
+export const PHOTO_DRIVES={
+1:'https://drive.google.com/drive/folders/18llwe32c0gmaVV-yigUYieKif9aaQ7I1',
+2:'https://drive.google.com/drive/folders/1h3cChYv_YdoyVPvKR4ERggkAVjak5Sdo',
+3:'https://drive.google.com/drive/folders/18wQU13T3cACPhrhw2u5ZoEdRtxk7IVQI'
+};
+export const SHARED_DRIVE='https://drive.google.com/drive/folders/1NiBwYLWonlk4C_opqRmNrGHa2ZHR0Spt';

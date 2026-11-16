@@ -11,4 +11,4 @@ export const UPCYCLE_PROMPT=`버려진 페트병과 헌 청바지 천을 이용�
 export const UPCYCLE_FRAME=`버려진 [재료]를 이용해 [새로운 쓰임]이 있는 물건을 디자인해 줘. [재료의 특징]이 잘 보이게 표현하고, 실제로 만들 수 있는 구조로 그려 줘. 밝은 배경에 제품 하나가 잘 보이도록 표현해 줘.`;
 export const THEATER_HINTS=['연극의 줄거리는 무엇이었나요?','어떤 등장인물이 가장 기억에 남나요? 그 이유는 무엇인가요?','가장 인상 깊었던 장면이나 대사는 무엇인가요?','재미있거나 놀랍거나 마음이 움직였던 순간은 언제였나요?','내가 등장인물이었다면 어떻게 행동했을까요?','인물에게 어떤 말을 전하고 싶나요?','연극을 보고 새롭게 생각하게 된 점은 무엇인가요?'];
 export function sentenceCount(text){return String(text).split(/[.!?。！？]+/).slice(0,-1).filter(s=>s.trim().length>0).length;}
-export function missionKind(id){if(id.startsWith('photo'))return 'drive';if(PADLET_GUIDES[id])return 'padlet';if(id==='color')return 'canva';if(id==='sticker')return 'sticker';return 'writing';}
+export function missionKind(id){if(id.startsWith('photo'))return 'photo';if(PADLET_GUIDES[id])return 'padlet';if(id==='color')return 'canva';if(id==='sticker')return 'sticker';return 'writing';}

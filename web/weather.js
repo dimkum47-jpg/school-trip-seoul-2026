@@ -1,0 +1,5 @@
+const KEY='trip:seoul:forecast:v1';
+export function weatherName(code){if(code===0)return '맑음';if(code<=3)return '구름 조금';if(code<=48)return '안개';if(code<=57)return '이슬비';if(code<=67)return '비';if(code<=77)return '눈';if(code<=82)return '소나기';if(code<=86)return '눈 소나기';if(code<=99)return '뇌우';return '날씨 정보 없음';}
+export async function getWeather(){let cached;try{cached=JSON.parse(localStorage.getItem(KEY)||'null');}catch{}if(cached&&Date.now()-cached.savedAt<3600000)return cached;
+ const url='https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FSeoul&forecast_days=7';
+ try{const res=await fetch(url,{signal:AbortSignal.timeout(8000)});if(!res.ok)throw Error('weather');const data=await res.json();if(!data.daily?.time||!data.current)throw Error('weather');const next={data,savedAt:Date.now()};try{localStorage.setItem(KEY,JSON.stringify(next));}catch{}return next;}catch{if(cached&&Date.now()-cached.savedAt<86400000)return {...cached,stale:true};throw Error('날씨를 불러오지 못했어요.');}}

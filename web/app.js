@@ -1,8 +1,10 @@
 import { config } from "./config.js";
 import { missions, schedules, meetings, poses, CANVA } from './data.js';
 import { validateAnswer, safeUrl, csvCell } from './model.js';
+import { getWeather, weatherName } from './weather.js';
 const $=s=>document.querySelector(s), el=$('#app');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let forecast=null, weatherFailed=false;
 let sdk, auth, db, user=null, teacher=false, profile={}, records={}, roster=[], settings={}, allRecords=[], mode='today', day=Math.min(3,Math.max(1,Number(new Intl.DateTimeFormat('en',{timeZone:'Asia/Seoul',day:'numeric'}).format(new Date()))-17)), demo=!config.firebase, busy=false;
 const draftKey=id=>`trip:${config.tripId}:${user?.uid||'demo'}:${id}`;
 const localRead=k=>{try{return JSON.parse(localStorage.getItem(k)||'null');}catch{return null;}};
@@ -13,12 +15,28 @@ const submitLabel=()=>demo?'체험 기록 저장 (이 기기)':'제출하기';
 function badge(){return demo?'<div class="banner">체험 모드 · 기록은 이 기기에만 저장돼요. 실제 학생 제출은 전용 DB 연결 후 시작해요.</div>':!user?'<div class="banner">일정과 과제를 둘러보고, 제출할 때 개인 접속 코드로 입장해요.</div>':'';}
 function dayTabs(){return `<div class="tabs" aria-label="날짜 선택">${[1,2,3,4].map(d=>`<button data-day="${d}" class="${d===day?'active':''}">${d===4?'여행 후':`DAY ${d} · 11.${17+d}`}</button>`).join('')}</div>`;}
 function cards(list){return `<div class="grid">${list.map((m,i)=>`<article class="card"><div class="num">${String(i+1).padStart(2,'0')} / ${esc(m.place)}</div><h3>${esc(m.title)}</h3><p>${esc(m.prompt)}</p><span class="badge">${status(records[m.id])}</span><button data-mission="${m.id}">미션 열기 ↗</button></article>`).join('')}</div>`;}
+function weatherCard(date){
+ const d=forecast?.data;const i=date?d?.daily.time.indexOf(date):-1;const daily=i>=0;
+ const title=daily?`${date.slice(5).replace('-','.')} 서울 날씨`:'서울의 현재 날씨';
+ if(!d)return `<p class="eyebrow">SEOUL WEATHER</p><h2>${title}</h2><p>${weatherFailed?'날씨를 불러오지 못했어요.':'날씨를 불러오고 있어요…'}</p><p class="hint">연결이 안 되어도 일정과 미션은 볼 수 있어요.</p>`;
+ const code=daily?d.daily.weather_code[i]:d.current.weather_code;const temp=daily?`${Math.round(d.daily.temperature_2m_min[i])}° — ${Math.round(d.daily.temperature_2m_max[i])}°`:`${Math.round(d.current.temperature_2m)}°`;
+ const stamp=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(forecast.savedAt));
+ return `<p class="eyebrow">SEOUL WEATHER</p><h2>${title}</h2><div class="weather-main"><strong>${temp}</strong><span>${code<=3?'☀':'☂'}</span></div><p>${weatherName(code)}${daily?` · 강수 확률 ${d.daily.precipitation_probability_max[i]??'—'}%`:''}</p>${!daily&&date?'<p class="hint">선택한 날짜는 예보 범위 밖이에요. 현재 날씨를 표시해요.</p>':''}<p class="hint">${forecast.stale?'최근 저장된 정보 · ':''}${stamp} 갱신<br><a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Weather data by Open-Meteo.com</a></p>`;
+}
 function render(){
  $('#account').textContent=user?`${teacher?'교사 관리':profile.label||'학생'} · 나가기`:demo?'체험 중 · 접속 안내':'접속하기';
  document.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav===mode));
  if(mode==='teacher'&&teacher){renderTeacher();return;}
  const count=Object.keys(records).length;
- if(mode==='today')el.innerHTML=badge()+`<section class="hero"><div><span class="badge">2026.11.18 — 11.20 · SEOUL</span><h1>우리의 가을,<br>우리의 수학여행</h1><p class="muted">충분히 보고, 마음껏 느끼고.<br>친구와 함께 발견하는 사흘의 기록.</p><button data-nav="missions">오늘의 미션 만나기 ↗</button></div><div class="leaf" aria-hidden="true">❧</div></section>${settings.notice?`<div class="banner">📢 ${esc(settings.notice)}</div>`:''}${dayTabs()}<div class="two"><section class="card"><p class="eyebrow">OUR ROUTE</p><h2>오늘의 여정</h2><ul class="timeline">${(settings.schedules?.[day]||schedules[day]||[['여행 후','작품 완성·추억 나누기']]).map(([t,n])=>`<li><time>${esc(t)}</time><span>${esc(n)}</span></li>`).join('')}</ul><small>현장에서는 선생님의 최신 안내를 따라요.</small></section><section><article class="card"><p class="eyebrow">MY LITTLE COLLECTION</p><h2>차곡차곡, 내 기록</h2><p><strong>${count}</strong> / ${missions.length}개 제출</p><div class="progress"><div style="width:${count/missions.length*100}%"></div></div><button data-nav="records">내 기록 보기</button></article><article class="card" style="margin-top:16px"><h3>우리의 약속</h3><p>혼자 돌아다니지 않기<br>친구·선생님과 함께 다니기<br>관람을 즐긴 뒤 안전한 곳에서 기록하기</p></article></section></div>`;
+ if(mode==='today'){
+ const route=settings.schedules?.[day]||schedules[day]||[['여행 후','작품 완성·추억 나누기']];
+ const now=new Date();const kstDate=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);const selected=day<=3?`2026-11-${17+day}`:null;
+ const hhmm=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false}).format(now);
+ const upcoming=selected===kstDate?route.filter(([t])=>t>=hhmm):route;
+ const preview=(upcoming.length?upcoming:route.slice(-2)).slice(0,3);
+ const primaryMissions=shown().filter(m=>!m.id.startsWith('photo'));
+ el.innerHTML=badge()+`<section class="hero home-hero"><div><p class="eyebrow">A LITTLE JOURNEY, A LASTING MEMORY</p><h1>우리의 가을,<br>우리의 수학여행</h1><p>낯선 풍경 속에서 발견하는 우리의 이야기.<br>함께한 순간을 하나씩 모아 볼까요?</p><span class="badge">2026.11.18 — 11.20 · 서울</span></div><div class="leaf" aria-hidden="true">❧</div></section>${settings.notice?`<div class="banner">📢 ${esc(settings.notice)}</div>`:''}${dayTabs()}<div class="dashboard"><section class="card route-card"><p class="eyebrow">OUR ROUTE</p><h2>${selected===kstDate?'이어서 만날 여정':'일정 미리보기'}</h2><ul class="timeline">${preview.map(([t,n])=>`<li><time>${esc(t)}</time><span>${esc(n)}</span></li>`).join('')}</ul><details><summary>전체 일정 펼치기</summary><ul class="timeline">${route.map(([t,n])=>`<li><time>${esc(t)}</time><span>${esc(n)}</span></li>`).join('')}</ul></details><p class="hint">선생님의 최신 현장 안내를 따라요.</p></section><section class="card weather-card" id="weatherCard">${weatherCard(selected)}</section><section class="card mission-summary"><p class="eyebrow">TODAY’S MISSIONS</p><h2>${day===4?'여행 후':'DAY '+day} 미션 <span class="badge">${shown().length}개</span></h2>${primaryMissions.map(m=>`<button class="mission-short" data-mission="${m.id}"><span><small>${esc(m.place)}</small><strong>${esc(m.title)}</strong></span><span aria-hidden="true">↗</span></button>`).join('')}<button data-nav="missions">사진 미션까지 모두 보기 →</button><p class="hint">학생들이 만든 박물관 퀴즈는 종이 워크북에 직접 풀어요.</p></section></div><section class="home-bottom"><div><h3>차곡차곡, 내 기록</h3><p>${count} / ${missions.length}개의 순간을 남겼어요.</p></div><button data-nav="records">내 기록 보기 →</button></section>`;
+ }
  if(mode==='missions')el.innerHTML=badge()+`<p class="eyebrow">TRAVEL MISSIONS</p><h1>오늘은 무엇을<br>발견했나요?</h1>${dayTabs()}${cards(shown())}<footer>박물관 학생 퀴즈는 종이 워크북에 직접 풀어요.</footer>`;
  if(mode==='photos')el.innerHTML=badge()+`<p class="eyebrow">MOMENTS TO KEEP</p><h1>함께라서 더 예쁜<br>우리의 순간</h1>${dayTabs()}${cards(shown().filter(m=>m.id.startsWith('photo')))}<section class="colorbox" style="margin-top:24px"><h2>컬러 헌팅 · 가을의 색을 모으다</h2><p>우리 모둠의 색: <strong>${esc(settings.colors?.[profile.group]||'선생님이 배정해 주세요')}</strong></p><p>사진 8장으로 캔바 칸을 채우고, 대표 사진 1장을 함께 제출해요.</p><button data-mission="color">컬러 헌팅 열기 ↗</button></section><h2>포즈 아이디어 18</h2><div class="grid">${poses.map((p,i)=>`<div class="card"><span class="num">POSE ${String(i+1).padStart(2,'0')}</span><h3>${p}</h3></div>`).join('')}</div>`;
  if(mode==='records')el.innerHTML=badge()+`<p class="eyebrow">MY TRAVEL JOURNAL</p><h1>마음에 남긴 기록</h1><p>${count}개의 순간을 남겼어요.</p>${cards(missions.filter(m=>records[m.id]))}${count?'':'<div class="card empty">아직 남긴 기록이 없어요. 미션에서 첫 기록을 남겨요.</div>'}${teacher?'<button class="primary" data-nav="teacher">교사용 관리 열기</button>':''}`;
@@ -52,3 +70,4 @@ $('#closeLogin').onclick=()=>$('#login').close();
 $('#loginForm').onsubmit=async e=>{e.preventDefault();try{const code=$('#email').value.trim();const email=code.includes('@')?code:code+'@trip.invalid';await sdk.signInWithEmailAndPassword(auth,email,$('#password').value);$('#password').value='';$('#login').close();}catch(e){$('#loginError').textContent=friendly(e);}};
 async function boot(){render();if(demo){records=localRead('trip:demo:records')||{};render();return;}try{const [app,A,F]=await Promise.all([import('https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js'),import('https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js'),import('https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js')]);sdk={...A,...F};const firebase=app.initializeApp(config.firebase);auth=A.getAuth(firebase);db=F.getFirestore(firebase);A.onAuthStateChanged(auth,async u=>{user=u;teacher=false;try{await load();render();}catch(e){toast(friendly(e));if(user)await A.signOut(auth);}});}catch(e){el.innerHTML='<div class="card"><h2>연결을 준비하지 못했어요</h2><p>인터넷 연결을 확인한 뒤 새로고침해 주세요. 실제 제출은 아직 시작되지 않았어요.</p></div>';}}
 boot();
+getWeather().then(result=>{forecast=result;if(mode==='today')render();}).catch(()=>{weatherFailed=true;if(mode==='today')render();});
